@@ -33,6 +33,10 @@ numWFIB.extend([25034.114]) #2026D98 PU, with 10% OT ineffiency
 numWFIB.extend([25234.0,25234.911]) #2026D99 DDD XML, DD4hep XML
 numWFIB.extend([25634.0]) #2026D100
 numWFIB.extend([26034.0]) #2026D101
+numWFIB.extend([26434.0]) #2026D102
+numWFIB.extend([26834.0]) #2026D103
+numWFIB.extend([27234.0]) #2026D104
+numWFIB.extend([27634.0]) #2026D105
 
 #Additional sample for short matrix and IB
 #CloseByPGun for HGCAL

@@ -75,18 +75,42 @@ namespace cms::alpakatools {
     }
   }
 
+  /* ElementIndex
+   *
+   * an aggregate that containes the .global and .local indices of an element; returned by iterating over elements_in_block.
+   */
+
+  struct ElementIndex {
+    Idx global;
+    Idx local;
+  };
+
+  /* elements_with_stride
+   *
+   * `elements_with_stride(acc, [first, ]extent)` returns an iteratable range that spans the element indices required to
+   * cover the given problem size:
+   *   - `first` (optional) is index to the first element; if not specified, the loop starts from 0;
+   *   - `extent` is the total size of the problem, including any elements that may come before `first`.
+   */
+
   template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
   class elements_with_stride {
   public:
     ALPAKA_FN_ACC inline elements_with_stride(TAcc const& acc)
         : elements_{alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]},
-          thread_{alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
+          first_{alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
           stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
           extent_{stride_} {}
 
     ALPAKA_FN_ACC inline elements_with_stride(TAcc const& acc, Idx extent)
         : elements_{alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]},
-          thread_{alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
+          first_{alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
+          stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
+          extent_{extent} {}
+
+    ALPAKA_FN_ACC inline elements_with_stride(TAcc const& acc, Idx first, Idx extent)
+        : elements_{alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]},
+          first_{alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_ + first},
           stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)[0u] * elements_},
           extent_{extent} {}
 
@@ -151,13 +175,13 @@ namespace cms::alpakatools {
       Idx range_;
     };
 
-    ALPAKA_FN_ACC inline iterator begin() const { return iterator(elements_, stride_, extent_, thread_); }
+    ALPAKA_FN_ACC inline iterator begin() const { return iterator(elements_, stride_, extent_, first_); }
 
     ALPAKA_FN_ACC inline iterator end() const { return iterator(elements_, stride_, extent_, extent_); }
 
   private:
     const Idx elements_;
-    const Idx thread_;
+    const Idx first_;
     const Idx stride_;
     const Idx extent_;
   };
@@ -325,6 +349,400 @@ namespace cms::alpakatools {
     const Vec stride_;
     const Vec extent_;
   };
+
+  /* blocks_with_stride
+   *
+   * `blocks_with_stride(acc, size)` returns a range than spans the (virtual) block indices required to cover the given
+   * problem size.
+   *
+   * For example, if size is 1000 and the block size is 16, it will return the range from 1 to 62.
+   * If the work division has more than 63 blocks, only the first 63 will perform one iteration of the loop, and the
+   * other will exit immediately.
+   * If the work division has less than 63 blocks, some of the blocks will perform more than one iteration, in order to
+   * cover then whole problem space.
+   *
+   * All threads in a block see the same loop iterations, while threads in different blocks may see a different number
+   * of iterations.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
+  class blocks_with_stride {
+  public:
+    ALPAKA_FN_ACC inline blocks_with_stride(TAcc const& acc)
+        : first_{alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          extent_{stride_} {}
+
+    // extent is the total number of elements (not blocks)
+    ALPAKA_FN_ACC inline blocks_with_stride(TAcc const& acc, Idx extent)
+        : first_{alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          extent_{divide_up_by(extent, alpaka::getWorkDiv<alpaka::Block, alpaka::Elems>(acc)[0u])} {}
+
+    class iterator {
+      friend class blocks_with_stride;
+
+      ALPAKA_FN_ACC inline iterator(Idx stride, Idx extent, Idx first)
+          : stride_{stride}, extent_{extent}, first_{std::min(first, extent)} {}
+
+    public:
+      ALPAKA_FN_ACC inline Idx operator*() const { return first_; }
+
+      // pre-increment the iterator
+      ALPAKA_FN_ACC inline iterator& operator++() {
+        // increment the first-element-in-block index by the grid stride
+        first_ += stride_;
+        if (first_ < extent_)
+          return *this;
+
+        // the iterator has reached or passed the end of the extent, clamp it to the extent
+        first_ = extent_;
+        return *this;
+      }
+
+      // post-increment the iterator
+      ALPAKA_FN_ACC inline iterator operator++(int) {
+        iterator old = *this;
+        ++(*this);
+        return old;
+      }
+
+      ALPAKA_FN_ACC inline bool operator==(iterator const& other) const { return (first_ == other.first_); }
+
+      ALPAKA_FN_ACC inline bool operator!=(iterator const& other) const { return not(*this == other); }
+
+    private:
+      // non-const to support iterator copy and assignment
+      Idx stride_;
+      Idx extent_;
+      // modified by the pre/post-increment operator
+      Idx first_;
+    };
+
+    ALPAKA_FN_ACC inline iterator begin() const { return iterator(stride_, extent_, first_); }
+
+    ALPAKA_FN_ACC inline iterator end() const { return iterator(stride_, extent_, extent_); }
+
+  private:
+    const Idx first_;
+    const Idx stride_;
+    const Idx extent_;
+  };
+
+  /* elements_in_block
+   *
+   * `elements_in_block(acc, block, size)` returns a range that spans all the elements within the given block.
+   * Iterating over the range yields values of type ElementIndex, that contain both .global and .local indices
+   * of the corresponding element.
+   *
+   * If the work division has only one element per thread, the loop will perform at most one iteration.
+   * If the work division has more than one elements per thread, the loop will perform that number of iterations,
+   * or less if it reaches size.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
+  class elements_in_block {
+  public:
+    ALPAKA_FN_ACC inline elements_in_block(TAcc const& acc, Idx block)
+        : first_{block * alpaka::getWorkDiv<alpaka::Block, alpaka::Elems>(acc)[0u]},
+          local_{alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u] *
+                 alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]},
+          range_{local_ + alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]} {}
+
+    ALPAKA_FN_ACC inline elements_in_block(TAcc const& acc, Idx block, Idx extent)
+        : first_{block * alpaka::getWorkDiv<alpaka::Block, alpaka::Elems>(acc)[0u]},
+          local_{std::min(extent - first_,
+                          alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u] *
+                              alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u])},
+          range_{std::min(extent - first_, local_ + alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u])} {}
+
+    class iterator {
+      friend class elements_in_block;
+
+      ALPAKA_FN_ACC inline iterator(Idx local, Idx first, Idx range) : index_{local}, first_{first}, range_{range} {}
+
+    public:
+      ALPAKA_FN_ACC inline ElementIndex operator*() const { return ElementIndex{index_ + first_, index_}; }
+
+      // pre-increment the iterator
+      ALPAKA_FN_ACC inline iterator& operator++() {
+        if constexpr (requires_single_thread_per_block_v<TAcc>) {
+          // increment the index along the elements processed by the current thread
+          ++index_;
+          if (index_ < range_)
+            return *this;
+        }
+
+        // the iterator has reached or passed the end of the extent, clamp it to the extent
+        index_ = range_;
+        return *this;
+      }
+
+      // post-increment the iterator
+      ALPAKA_FN_ACC inline iterator operator++(int) {
+        iterator old = *this;
+        ++(*this);
+        return old;
+      }
+
+      ALPAKA_FN_ACC inline bool operator==(iterator const& other) const { return (index_ == other.index_); }
+
+      ALPAKA_FN_ACC inline bool operator!=(iterator const& other) const { return not(*this == other); }
+
+    private:
+      // modified by the pre/post-increment operator
+      Idx index_;
+      // non-const to support iterator copy and assignment
+      Idx first_;
+      Idx range_;
+    };
+
+    ALPAKA_FN_ACC inline iterator begin() const { return iterator(local_, first_, range_); }
+
+    ALPAKA_FN_ACC inline iterator end() const { return iterator(range_, first_, range_); }
+
+  private:
+    const Idx first_;
+    const Idx local_;
+    const Idx range_;
+  };
+
+  /* uniform_groups
+   *
+   * `uniform_groups(acc, elements)` returns a range than spans the group indices required to cover the given problem
+   * size, in units of the block size:
+   *   - the `elements` argument indicates the total number of elements, across all groups.
+   *
+   * `uniform_groups` should be called consistently by all the threads in a block. All threads in a block see the same
+   * loop iterations, while threads in different blocks may see a different number of iterations.
+   *
+   * For example, if `size` is 1000 and the block size is 16,
+   *
+   *   for (auto group: uniform_groups(acc, 1000)
+   *
+   * will return the range from 0 to 62, split across all blocks in the work division.
+   *
+   * If the work division has more than 63 blocks, the first 63 will perform one iteration of the loop, while the other
+   * blocks will exit immediately.
+   * If the work division has less than 63 blocks, some of the blocks will perform more than one iteration, in order to
+   * cover then whole problem space.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
+  using uniform_groups = blocks_with_stride<TAcc>;
+
+  /* uniform_group_elements
+   *
+   * `uniform_group_elements(acc, group, elements)` returns a range that spans all the elements within the given group:
+   *   - the `group` argument indicates the id of the current group, for example as obtained from `uniform_groups`;
+   *   - the `elements` argument indicates the total number of elements, across all groups.
+   *
+   * Iterating over the range yields values of type `ElementIndex`, that contain the `.global` and `.local` indices of
+   * the corresponding element.
+   *
+   * The loop will perform a number of iterations up to the number of elements per thread, stopping earlier when the
+   * element index reaches `size`.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
+  using uniform_group_elements = elements_in_block<TAcc>;
+
+  /* independent_groups
+   *
+   * `independent_groups(acc, groups)` returns a range than spans the group indices from 0 to `groups`, with one group
+   * per block:
+   *   - the `groups` argument indicates the total number of groups.
+   *
+   * If the work division has more blocks than `groups`, only the first `groups` blocks will perform one iteration of
+   * the loop, while the other blocks will exit immediately.
+   * If the work division has less blocks than `groups`, some of the blocks will perform more than one iteration, in
+   * order to cover then whole problem space.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
+  class independent_groups {
+  public:
+    ALPAKA_FN_ACC inline independent_groups(TAcc const& acc)
+        : first_{alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          extent_{stride_} {}
+
+    // extent is the total number of elements (not blocks)
+    ALPAKA_FN_ACC inline independent_groups(TAcc const& acc, Idx groups)
+        : first_{alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          stride_{alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u]},
+          extent_{groups} {}
+
+    class iterator {
+      friend class independent_groups;
+
+      ALPAKA_FN_ACC inline iterator(Idx stride, Idx extent, Idx first)
+          : stride_{stride}, extent_{extent}, first_{std::min(first, extent)} {}
+
+    public:
+      ALPAKA_FN_ACC inline Idx operator*() const { return first_; }
+
+      // pre-increment the iterator
+      ALPAKA_FN_ACC inline iterator& operator++() {
+        // increment the first-element-in-block index by the grid stride
+        first_ += stride_;
+        if (first_ < extent_)
+          return *this;
+
+        // the iterator has reached or passed the end of the extent, clamp it to the extent
+        first_ = extent_;
+        return *this;
+      }
+
+      // post-increment the iterator
+      ALPAKA_FN_ACC inline iterator operator++(int) {
+        iterator old = *this;
+        ++(*this);
+        return old;
+      }
+
+      ALPAKA_FN_ACC inline bool operator==(iterator const& other) const { return (first_ == other.first_); }
+
+      ALPAKA_FN_ACC inline bool operator!=(iterator const& other) const { return not(*this == other); }
+
+    private:
+      // non-const to support iterator copy and assignment
+      Idx stride_;
+      Idx extent_;
+      // modified by the pre/post-increment operator
+      Idx first_;
+    };
+
+    ALPAKA_FN_ACC inline iterator begin() const { return iterator(stride_, extent_, first_); }
+
+    ALPAKA_FN_ACC inline iterator end() const { return iterator(stride_, extent_, extent_); }
+
+  private:
+    const Idx first_;
+    const Idx stride_;
+    const Idx extent_;
+  };
+
+  /* independent_group_elements
+   *
+   * `independent_group_elements(acc, elements)` returns a range that spans all the elements within the given group:
+   *   - the `elements` argument indicates the number of elements in the current group.
+   *
+   * Iterating over the range yields the local element index, between `0` and `elements - 1`. The threads in the block
+   * will perform one or more iterations, depending on the number of elements per thread, and on the number of threads
+   * per block, ocmpared with the total number of elements.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc> and alpaka::Dim<TAcc>::value == 1>>
+  class independent_group_elements {
+  public:
+    ALPAKA_FN_ACC inline independent_group_elements(TAcc const& acc)
+        : elements_{alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]},
+          thread_{alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u] * elements_},
+          stride_{alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0u] * elements_},
+          extent_{stride_} {}
+
+    ALPAKA_FN_ACC inline independent_group_elements(TAcc const& acc, Idx extent)
+        : elements_{alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u]},
+          thread_{alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u] * elements_},
+          stride_{alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0u] * elements_},
+          extent_{extent} {}
+
+    class iterator {
+      friend class independent_group_elements;
+
+      ALPAKA_FN_ACC inline iterator(Idx elements, Idx stride, Idx extent, Idx first)
+          : elements_{elements},
+            stride_{stride},
+            extent_{extent},
+            first_{std::min(first, extent)},
+            index_{first_},
+            range_{std::min(first + elements, extent)} {}
+
+    public:
+      ALPAKA_FN_ACC inline Idx operator*() const { return index_; }
+
+      // pre-increment the iterator
+      ALPAKA_FN_ACC inline iterator& operator++() {
+        if constexpr (requires_single_thread_per_block_v<TAcc>) {
+          // increment the index along the elements processed by the current thread
+          ++index_;
+          if (index_ < range_)
+            return *this;
+        }
+
+        // increment the thread index with the block stride
+        first_ += stride_;
+        index_ = first_;
+        range_ = std::min(first_ + elements_, extent_);
+        if (index_ < extent_)
+          return *this;
+
+        // the iterator has reached or passed the end of the extent, clamp it to the extent
+        first_ = extent_;
+        index_ = extent_;
+        range_ = extent_;
+        return *this;
+      }
+
+      // post-increment the iterator
+      ALPAKA_FN_ACC inline iterator operator++(int) {
+        iterator old = *this;
+        ++(*this);
+        return old;
+      }
+
+      ALPAKA_FN_ACC inline bool operator==(iterator const& other) const {
+        return (index_ == other.index_) and (first_ == other.first_);
+      }
+
+      ALPAKA_FN_ACC inline bool operator!=(iterator const& other) const { return not(*this == other); }
+
+    private:
+      // non-const to support iterator copy and assignment
+      Idx elements_;
+      Idx stride_;
+      Idx extent_;
+      // modified by the pre/post-increment operator
+      Idx first_;
+      Idx index_;
+      Idx range_;
+    };
+
+    ALPAKA_FN_ACC inline iterator begin() const { return iterator(elements_, stride_, extent_, thread_); }
+
+    ALPAKA_FN_ACC inline iterator end() const { return iterator(elements_, stride_, extent_, extent_); }
+
+  private:
+    const Idx elements_;
+    const Idx thread_;
+    const Idx stride_;
+    const Idx extent_;
+  };
+
+  /* once_per_grid
+   *
+   * `once_per_grid(acc)` returns true for a single thread within the kernel execution grid.
+   *
+   * Usually the condition is true for block 0 and thread 0, but these indices should not be relied upon.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+  ALPAKA_FN_ACC inline constexpr bool once_per_grid(TAcc const& acc) {
+    return alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc) == Vec<alpaka::Dim<TAcc>>::zeros();
+  }
+
+  /* once_per_block
+   *
+   * `once_per_block(acc)` returns true for a single thread within the block.
+   *
+   * Usually the condition is true for thread 0, but this index should not be relied upon.
+   */
+
+  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+  ALPAKA_FN_ACC inline constexpr bool once_per_block(TAcc const& acc) {
+    return alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc) == Vec<alpaka::Dim<TAcc>>::zeros();
+  }
 
 }  // namespace cms::alpakatools
 
