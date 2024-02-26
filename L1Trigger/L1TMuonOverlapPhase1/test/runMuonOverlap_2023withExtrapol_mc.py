@@ -137,6 +137,7 @@ process.load('L1Trigger.L1TMuonOverlapPhase1.simOmtfDigis_extrapolSimple_cfi')
 process.simOmtfDigis.patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuonOverlapPhase1/test/expert/omtf/Patterns_ExtraplMB1nadMB2SimplifiedFP_t17_classProb17_recalib2.xml")
 
 process.simOmtfDigis.dumpResultToXML = cms.bool(True)
+process.simOmtfDigis.dumpResultToROOT = cms.bool(False)
 process.simOmtfDigis.eventCaptureDebug = cms.bool(True)
 
 process.simOmtfDigis.lctCentralBx = cms.int32(8)#<<<<<<<<<<<<<<<<!!!!!!!!!!!!!!!!!!!!TODO this was changed in CMSSW 10(?) to 8. if the data were generated with the previous CMSSW then you have to use 6

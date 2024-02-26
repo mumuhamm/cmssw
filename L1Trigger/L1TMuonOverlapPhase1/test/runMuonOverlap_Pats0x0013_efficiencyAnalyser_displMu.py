@@ -6,6 +6,8 @@ import sys
 import re
 from os import listdir
 from os.path import isfile, join
+import glob
+import random
 
 
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
@@ -14,7 +16,7 @@ verbose = True
 #version = 't14_extrapolSimpl_displ_allfiles'
 #version = 't16_extrapolSimpl_displ_test'
 #version = 'ExtraplMB1nadMB2SimplifiedFP_t17_v11_test_valueP1Scale'
-version = 'ExtraplMB1nadMB2SimplifiedFP_t18_v11_test_bits'
+version = 'ExtraplMB1nadMB2SimplifiedFP_WU_V1_NF_13_1_0_test_bits'
 #version = 'Patterns_0x00012_t17_v11_extr_off_test_bits'
 
 runDebug = "DEBUG" # or "INFO" DEBUG
@@ -78,8 +80,9 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 from Configuration.AlCa.GlobalTag import GlobalTag
 #process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgradePLS3', '')
-process.GlobalTag = GlobalTag(process.GlobalTag, '103X_upgrade2023_realistic_v2', '') 
 
+#process.GlobalTag = GlobalTag(process.GlobalTag, '103X_upgrade2023_realistic_v2', '') 
+process.GlobalTag = GlobalTag(process.GlobalTag, '131X_mcRun3_2023_realistic_v10', '')
 
 #path = '/eos/user/k/kbunkow/cms_data/SingleMuFullEta/721_FullEta_v4/' #old sample, but very big
 #path = '/eos/user/a/akalinow/Data/SingleMu/9_3_14_FullEta_v2/' #new sample, but small and more noisy
@@ -99,7 +102,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '103X_upgrade2023_realistic_v2'
 #chosenFiles = ['file://' + path + f for f in onlyfiles if ((filesNameLike in f))]
 
 #print(onlyfiles)
-
+'''
 chosenFiles = []
 
 fileCnt = 1000 #1000 
@@ -140,13 +143,25 @@ if len(chosenFiles) == 0 :
 
 firstEv = 0#40000
 #nEvents = 1000
+'''
+
+
+
+
 
 # input files (up to 255 files accepted)
 process.source = cms.Source('PoolSource',
 fileNames = cms.untracked.vstring( 
     #'file:/eos/user/k/kbunkow/cms_data/SingleMuFullEta/721_FullEta_v4/SingleMu_16_p_1_1_xTE.root',
     #'file:/afs/cern.ch/user/k/kpijanow/Neutrino_Pt-2to20_gun_50.root',
-    list(chosenFiles), ),
+    #list(chosenFiles), 
+
+    'file:///eos/user/k/kbunkow/cms_data/RelValDisplacedMuonGun/DisplacedMuonGun_Pt30To100_Dxy_0_1000_34016F34-7F62-E911-AAB8-0025905AA9CC_dumpAllEv.root',
+    'file:///eos/user/k/kbunkow/cms_data/RelValDisplacedMuonGun/DisplacedMuonGun_Pt30To100_Dxy_0_1000_3C065D44-7E62-E911-9F3F-0CC47A4C8F12_dumpAllEv.root',
+    'file:///eos/user/k/kbunkow/cms_data/RelValDisplacedMuonGun/DisplacedMuonGun_Pt30To100_Dxy_0_1000_A2885F26-7F62-E911-84CF-0CC47A4D7666_dumpAllEv.root',
+    'file:///eos/user/k/kbunkow/cms_data/RelValDisplacedMuonGun/DisplacedMuonGun_Pt30To100_Dxy_0_1000_E68C6334-7F62-E911-8AA5-0025905B8610_dumpAllEv.root',
+    'file:///eos/user/k/kbunkow/cms_data/RelValDisplacedMuonGun/DisplacedMuonGun_Pt30To100_Dxy_0_1000_C2D5C228-7F62-E911-AAA6-0CC47A78A42C_dumpAllEv.root',
+   ),
     skipEvents =  cms.untracked.uint32(0),
     inputCommands=cms.untracked.vstring(
         'keep *',
@@ -156,6 +171,15 @@ fileNames = cms.untracked.vstring(
         'drop l1tEMTFTrack2016Extras_simEmtfDigis__HLT',
         'drop l1tEMTFTrack2016s_simEmtfDigis__HLT')
 )
+
+prefixPath_plus = '/eos/user/a/almuhamm/OMTF_UW/Simulated_Samples/ForMyStudy/Qp_4thApril/0000'
+prefixPath_minus = '/eos/user/a/almuhamm/OMTF_UW/Simulated_Samples/ForMyStudy/Qm_4thApril/0000'
+fileList_plus = glob.glob(prefixPath_plus + '/*.root')
+fileList_minus = glob.glob(prefixPath_minus + '/*.root')
+fileList_mix = fileList_plus + fileList_minus
+random.shuffle(fileList_mix)
+fileList_mix = ['file:' + aFile for aFile in fileList_mix]
+process.source.fileNames = fileList_mix
 	                    
 if(runDebug == "DEBUG") :
     process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(2000))
@@ -184,7 +208,7 @@ for a in sys.argv :
     
 print("analysisType=" + analysisType)
 
-process.TFileService = cms.Service("TFileService", fileName = cms.string('omtfAnalysis2_eff_SingleMu_t' + version + '.root'), closeFileFast = cms.untracked.bool(True) )
+#process.TFileService = cms.Service("TFileService", fileName = cms.string('omtfAnalysis2_eff_SingleMu_t' + version + '.root'), closeFileFast = cms.untracked.bool(True) )
                                    
 ####OMTF Emulator
 if useExtraploationAlgo :
@@ -210,11 +234,11 @@ process.simOmtfDigis.simTracksTag = cms.InputTag('g4SimHits')
 process.simOmtfDigis.simVertexesTag = cms.InputTag('g4SimHits')
 process.simOmtfDigis.muonMatcherFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/muonMatcherHists_100files_smoothStdDev_withOvf.root")
 
-process.simOmtfDigis.dumpHitsToROOT = cms.bool(True)
+process.simOmtfDigis.dumpHitsToROOT = cms.bool(False)
 
 
 process.simOmtfDigis.sorterType = cms.string("byLLH")
-process.simOmtfDigis.ghostBusterType = cms.string("byRefLayer") # byLLH byRefLayer GhostBusterPreferRefDt
+process.simOmtfDigis.ghostBusterType = cms.string("GhostBusterPreferRefDt") # byLLH byRefLayer GhostBusterPreferRefDt
 
 
 #process.simOmtfDigis.patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_0x0009_oldSample_3_10Files.xml")
@@ -242,14 +266,14 @@ process.simOmtfDigis.rpcMaxClusterSize = cms.int32(3)
 process.simOmtfDigis.rpcMaxClusterCnt = cms.int32(2)
 process.simOmtfDigis.rpcDropAllClustersIfMoreThanMax = cms.bool(True)
 
-process.simOmtfDigis.goldenPatternResultFinalizeFunction = cms.int32(10) #valid values are 0, 1, 2, 3, 5
+process.simOmtfDigis.goldenPatternResultFinalizeFunction = cms.int32(9) #valid values are 0, 1, 2, 3, 5
 
 process.simOmtfDigis.noHitValueInPdf = cms.bool(True)
 
 process.simOmtfDigis.minDtPhiQuality = cms.int32(2)
-process.simOmtfDigis.minDtPhiBQuality = cms.int32(4)
+process.simOmtfDigis.minDtPhiBQuality = cms.int32(2)
 
-process.simOmtfDigis.lctCentralBx = cms.int32(8);#<<<<<<<<<<<<<<<<!!!!!!!!!!!!!!!!!!!!TODO this was changed in CMSSW 10(?) to 8. if the data were generated with the previous CMSSW then you have to use 6
+process.simOmtfDigis.lctCentralBx = cms.int32(8);#!TODO this was changed in CMSSW 10(?) to 8. if the data were generated with the previous CMSSW then you have to use 6
 
 if useExtraploationAlgo :
     process.simOmtfDigis.dtRefHitMinQuality =  cms.int32(4)
@@ -279,7 +303,7 @@ process.simOmtfDigis.stubEtaEncoding = cms.string("bits")
 process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorAlong_cfi")
 #process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorOpposite_cfi")
 #process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorAny_cfi")
-
+'''
 
 process.L1MuonAnalyzerOmtf= cms.EDAnalyzer("L1MuonAnalyzerOmtf", 
                                  etaCutFrom = cms.double(0.82), #OMTF eta range
@@ -297,7 +321,7 @@ process.L1MuonAnalyzerOmtf= cms.EDAnalyzer("L1MuonAnalyzerOmtf",
                                         )
 
 process.l1MuonAnalyzerOmtfPath = cms.Path(process.L1MuonAnalyzerOmtf)
-
+'''
 
 process.L1TMuonSeq = cms.Sequence( process.esProd          
                                    + process.simOmtfDigis 
@@ -307,7 +331,7 @@ process.L1TMuonSeq = cms.Sequence( process.esProd
 
 process.L1TMuonPath = cms.Path(process.L1TMuonSeq)
 
-process.schedule = cms.Schedule(process.L1TMuonPath, process.l1MuonAnalyzerOmtfPath)
+#process.schedule = cms.Schedule(process.L1TMuonPath, process.l1MuonAnalyzerOmtfPath)
 
 #process.out = cms.OutputModule("PoolOutputModule", 
 #   fileName = cms.untracked.string("l1tomtf_superprimitives1.root")

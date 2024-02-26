@@ -181,6 +181,7 @@ process.TFileService = cms.Service("TFileService", fileName = cms.string('omtfAn
 process.load('L1Trigger.L1TMuonOverlapPhase1.simOmtfDigis_cfi')
 
 process.simOmtfDigis.dumpResultToXML = cms.bool(False)
+process.simOmtfDigis.dumpResultToROOT = cms.bool(False)
 process.simOmtfDigis.eventCaptureDebug = cms.bool(False)
 #process.simOmtfDigis.simTracksTag = cms.InputTag('g4SimHits')
 

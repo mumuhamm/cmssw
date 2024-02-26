@@ -13,11 +13,11 @@ process.load("FWCore.MessageLogger.MessageLogger_cfi")
 verbose = True
 #version = 't14_extrapolSimpl_displ_allfiles'
 #version = 't16_extrapolSimpl_displ_test'
-#version = 'ExtraplMB1nadMB2SimplifiedFP_t17_v11_test_valueP1Scale'
-version = 'ExtraplMB1nadMB2SimplifiedFP_t18_v11_test_bits'
+version = 'ExtraplMB1nadMB2FloatQualand_Eta_t17_v12_test_valueP1Scale'
+#version = 'ExtraplMB1nadMB2SimplifiedFP_t17_v11_test_bits'
 #version = 'Patterns_0x00012_t17_v11_extr_off_test_bits'
 
-runDebug = "DEBUG" # or "INFO" DEBUG
+runDebug = "INFO" # or "INFO" DEBUG
 useExtraploationAlgo = True
 #useExtraploationAlgo = False
 
@@ -35,7 +35,7 @@ if verbose:
        omtfEventPrint = cms.untracked.PSet(    
                          filename  = cms.untracked.string('log_MuonOverlap_newPats_t' + version),
                          extension = cms.untracked.string('.txt'),                
-                         threshold = cms.untracked.string("INFO"), #DEBUG
+                         threshold = cms.untracked.string(runDebug), #DEBUG
                          default = cms.untracked.PSet( limit = cms.untracked.int32(0) ), 
                          #INFO   =  cms.untracked.int32(0),
                          #DEBUG   = cms.untracked.int32(0),
@@ -99,7 +99,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '103X_upgrade2023_realistic_v2'
 #chosenFiles = ['file://' + path + f for f in onlyfiles if ((filesNameLike in f))]
 
 #print(onlyfiles)
-
+'''
 chosenFiles = []
 
 fileCnt = 1000 #1000 
@@ -140,13 +140,15 @@ if len(chosenFiles) == 0 :
 
 firstEv = 0#40000
 #nEvents = 1000
-
+'''
 # input files (up to 255 files accepted)
 process.source = cms.Source('PoolSource',
 fileNames = cms.untracked.vstring( 
+    'file:/eos/user/a/almuhamm/ZMu_Test/Displaced13_1_0_04_11_2023/DisplacedMu_ch0_iPt0_Run2023_13_1_0_04_11_2023/13_1_0_04_11_2023/231104_145635/0000/DisplacedSingleMu_iPt_0_m_357.root',
     #'file:/eos/user/k/kbunkow/cms_data/SingleMuFullEta/721_FullEta_v4/SingleMu_16_p_1_1_xTE.root',
     #'file:/afs/cern.ch/user/k/kpijanow/Neutrino_Pt-2to20_gun_50.root',
-    list(chosenFiles), ),
+    #list(chosenFiles), 
+    ),
     skipEvents =  cms.untracked.uint32(0),
     inputCommands=cms.untracked.vstring(
         'keep *',
@@ -158,7 +160,7 @@ fileNames = cms.untracked.vstring(
 )
 	                    
 if(runDebug == "DEBUG") :
-    process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(2000))
+    process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(5000))
 else :
     process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1))
 
@@ -205,14 +207,6 @@ else :
     process.simOmtfDigis.eventCaptureDebug = cms.bool(False)    
 #process.simOmtfDigis.simTracksTag = cms.InputTag('g4SimHits')
 
-process.simOmtfDigis.candidateSimMuonMatcher = cms.bool(True)
-process.simOmtfDigis.simTracksTag = cms.InputTag('g4SimHits')
-process.simOmtfDigis.simVertexesTag = cms.InputTag('g4SimHits')
-process.simOmtfDigis.muonMatcherFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/muonMatcherHists_100files_smoothStdDev_withOvf.root")
-
-process.simOmtfDigis.dumpHitsToROOT = cms.bool(True)
-
-
 process.simOmtfDigis.sorterType = cms.string("byLLH")
 process.simOmtfDigis.ghostBusterType = cms.string("byRefLayer") # byLLH byRefLayer GhostBusterPreferRefDt
 
@@ -257,8 +251,13 @@ if useExtraploationAlgo :
     process.simOmtfDigis.usePhiBExtrapolationFromMB1 = cms.bool(True)
     process.simOmtfDigis.usePhiBExtrapolationFromMB2 = cms.bool(True)
     
-#process.simOmtfDigis.stubEtaEncoding = cms.string("valueP1Scale")  
-process.simOmtfDigis.stubEtaEncoding = cms.string("bits")   
+    process.simOmtfDigis.useStubQualInExtr  = cms.bool(True)
+    process.simOmtfDigis.useEndcapStubsRInExtr  = cms.bool(True)
+    process.simOmtfDigis.useFloatingPointExtrapolation  = cms.bool(True)
+    process.simOmtfDigis.extrapolFactorsFilename = cms.string("")
+    
+process.simOmtfDigis.stubEtaEncoding = cms.string("valueP1Scale")  
+#process.simOmtfDigis.stubEtaEncoding = cms.string("bits")   
 
 #nn_pThresholds = [0.36, 0.38, 0.40, 0.42, 0.44, 0.46, 0.48, 0.50, 0.52, 0.54 ]
 #nn_pThresholds = [0.40, 0.50] 
@@ -281,22 +280,6 @@ process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorAl
 #process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorAny_cfi")
 
 
-process.L1MuonAnalyzerOmtf= cms.EDAnalyzer("L1MuonAnalyzerOmtf", 
-                                 etaCutFrom = cms.double(0.82), #OMTF eta range
-                                 etaCutTo = cms.double(1.24),
-                                 L1OMTFInputTag  = cms.InputTag("simOmtfDigis","OMTF"),
-                                 #nn_pThresholds = cms.vdouble(nn_pThresholds), 
-                                 analysisType = cms.string(analysisType),
-                                 
-                                 simTracksTag = cms.InputTag('g4SimHits'),
-                                 simVertexesTag = cms.InputTag('g4SimHits'),
-                                 
-                                 matchUsingPropagation = cms.bool(True),
-                                 muonMatcherFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/muonMatcherHists_100files_smoothStdDev_withOvf.root") #if you want to make this file, remove this entry#if you want to make this file, remove this entry
-                                 #muonMatcherFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/muonMatcherHists_noPropagation_t74.root")
-                                        )
-
-process.l1MuonAnalyzerOmtfPath = cms.Path(process.L1MuonAnalyzerOmtf)
 
 
 process.L1TMuonSeq = cms.Sequence( process.esProd          
@@ -306,8 +289,6 @@ process.L1TMuonSeq = cms.Sequence( process.esProd
 )
 
 process.L1TMuonPath = cms.Path(process.L1TMuonSeq)
-
-process.schedule = cms.Schedule(process.L1TMuonPath, process.l1MuonAnalyzerOmtfPath)
 
 #process.out = cms.OutputModule("PoolOutputModule", 
 #   fileName = cms.untracked.string("l1tomtf_superprimitives1.root")
