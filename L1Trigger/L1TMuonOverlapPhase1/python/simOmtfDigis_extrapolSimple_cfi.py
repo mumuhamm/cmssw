@@ -4,7 +4,8 @@ import FWCore.ParameterSet.Config as cms
 from L1Trigger.L1TMuonOverlapPhase1.simOmtfDigis_cfi import simOmtfDigis
 
 ## add parameters to enable simple extrapolation algorithm
-simOmtfDigis_extrapolSimple = simOmtfDigis.clone(
+#simOmtfDigis_extrapolSimple = simOmtfDigis.clone(
+simOmtfDigis = simOmtfDigis.clone(
     noHitValueInPdf = cms.bool(True),
     minDtPhiQuality = cms.int32(2),
     minDtPhiBQuality = cms.int32(4),

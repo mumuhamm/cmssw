@@ -11,12 +11,14 @@ process.load("FWCore.MessageLogger.MessageLogger_cfi")
 
 verbose = True
 
-versionIn = "ExtraplMB1nadMB2Simplified_t27_DTQ_2_4_mcWaw2023_OneOverPt_and_iPt2"
+versionIn = "ExtraplMB1nadMB2DTQualAndRFixedP_ValueP1Scale_t25c__mcWaw2023_OneOverPt_and_iPt2_mcWaw2023_OneOverPt_and_iPt2"
+#versionIn = "ExtraplMB1nadMB2DTQualAndEtaFixedP_ValueP1Scale_t20_SingleMu_mcWaw2023_OneOverPt"
 #versionIn = "ExtraplMB1nadMB2DTQualAndEtaValueP1Scale_t18"
 #versionIn = "0x00011_oldSample_3_30Files"
-#Patterns_layerStat_ExtraplMB1nadMB2Simplified_t27_DTQ_2_4_mcWaw2023_OneOverPt_and_iPt2.root
 
-versionOut =  "0x0020_" + versionIn + "_classProb22_recalib2"
+#versionOut =  versionIn + "_classProb17_recalib2" #_classProb17_recalib2_minDP0
+
+versionOut =  "ExtraplMB1nadMB2DTQualAndRFixedP_ValueP1Scale_t25c_" + "_classProb17_recalib2"
 
 if verbose: 
     process.MessageLogger = cms.Service("MessageLogger",
@@ -50,25 +52,23 @@ if not verbose:
                                          #SkipEvent = cms.untracked.vstring('ProductNotFound') 
                                      )
     
-# PostLS1 geometry used
-process.load('Configuration.Geometry.GeometryExtended2015Reco_cff')
-process.load('Configuration.Geometry.GeometryExtended2015_cff')    
+process.load('Configuration.Geometry.GeometryExtended2026D49Reco_cff')
+process.load('Configuration.Geometry.GeometryExtended2026D49_cff')   
     
 # import of standard configurations
 process.load('Configuration.StandardSequences.Services_cff')
 process.load('SimGeneral.HepPDTESSource.pythiapdt_cfi')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load('SimGeneral.MixingModule.mixNoPU_cfi')
-#process.load('Configuration.Geometry.GeometryExtended2026D41Reco_cff')
-#process.load('Configuration.Geometry.GeometryExtended2026D41_cff')
+
 process.load('Configuration.StandardSequences.MagneticField_cff')
 #process.load('Configuration.StandardSequences.SimL1Emulator_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 from Configuration.AlCa.GlobalTag import GlobalTag
-#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgradePLS3', '')
-process.GlobalTag = GlobalTag(process.GlobalTag, '103X_upgrade2023_realistic_v2', '') 
+
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realisti', '') 
 
 path = '/eos/user/k/kbunkow/cms_data/SingleMuFullEta/721_FullEta_v4/' #old sample, but very big
 #path = '/eos/user/a/akalinow/Data/SingleMu/9_3_14_FullEta_v2/' #new sample, but small and more noisy
@@ -157,7 +157,7 @@ process.simOmtfDigis.patternGenerator = cms.string("patternGenFromStat")
 #process.simOmtfDigis.patternsROOTFile = cms.FileInPath("L1Trigger/L1TMuonOverlapPhase1/test/expert/omtf/Patterns_0x00011_oldSample_3_30Files_layerStat.root")
 #process.simOmtfDigis.patternsROOTFile = cms.FileInPath("L1Trigger/L1TMuonOverlapPhase1/test/expert/omtf/Patterns_layerStat_ExtraplMB1nadMB2_t14.root")
 #process.simOmtfDigis.patternsROOTFile = cms.FileInPath("L1Trigger/L1TMuonOverlapPhase1/test/expert/omtf/Patterns_layerStat_ExtraplMB1nadMB2FullAlgo_t16.root")
-process.simOmtfDigis.patternsROOTFile = cms.FileInPath("L1Trigger/L1TMuonOverlapPhase1/test/expert/omtf/Patterns_layerStat_" + versionIn + ".root")
+process.simOmtfDigis.patternsROOTFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_layerStat_" + versionIn + ".root")
 
 process.simOmtfDigis.patternType = cms.string("GoldenPatternWithStat")
 process.simOmtfDigis.generatePatterns = cms.bool(True)
