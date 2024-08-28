@@ -11,8 +11,9 @@ simOmtfPhase2Digis = cms.EDProducer("L1TMuonOverlapPhase2TrackProducer",
 
   ##  XML / PATTERNS file:
   configXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/hwToLogicLayer_0x0209.xml"),
-  patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_ExtraplMB1nadMB2DTQualAndEtaFixedP_ValueP1Scale_t20_v1_SingleMu_iPt_and_OneOverPt_classProb17_recalib2_minDP0.xml"),
-  extrapolFactorsFilename = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/ExtrapolationFactors_ExtraplMB1nadMB2DTQual_ValueP1Scale_t20.xml"),
+  extrapolFactorsFilename = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/ExtrapolationFactors_ExtraplMB1nadMB2DTQualAndR_EtaValueP1Scale_t31.xml"),
+  #patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_ExtraplMB1nadMB2DTQualAndEtaFixedP_ValueP1Scale_t20_v1_SingleMu_iPt_and_OneOverPt_classProb17_recalib2_minDP0.xml"),
+  patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_ExtraplMB1nadMB2DTQualAndRFixedP_DT_2_2_t30__classProb17_recalib2.xml"),
 
   dumpResultToXML = cms.bool(False),
   dumpDetailedResultToXML = cms.bool(False),
@@ -37,7 +38,7 @@ simOmtfPhase2Digis = cms.EDProducer("L1TMuonOverlapPhase2TrackProducer",
   
   noHitValueInPdf = cms.bool(True),
   minDtPhiQuality = cms.int32(2),
-  minDtPhiBQuality = cms.int32(4),
+  minDtPhiBQuality = cms.int32(2),
   
   dtRefHitMinQuality =  cms.int32(4),
   
@@ -45,6 +46,10 @@ simOmtfPhase2Digis = cms.EDProducer("L1TMuonOverlapPhase2TrackProducer",
     
   stubEtaEncoding = cms.string("valueP1Scale"), #TODO change to valueP1Scale when InputMakerPhase2 is modifiwed
   
+  rpcMaxClusterSize = cms.int32(3),
+  rpcMaxClusterCnt = cms.int32(2),
+  rpcDropAllClustersIfMoreThanMax = cms.bool(True),
+
   usePhiBExtrapolationFromMB1 = cms.bool(True),
   usePhiBExtrapolationFromMB2 = cms.bool(True),
   useStubQualInExtr  = cms.bool(True),
