@@ -62,7 +62,7 @@ void OMTFProcessor<GoldenPatternType>::init(const edm::ParameterSet& edmCfg, edm
 
   if (this->myOmtfConfig->getGhostBusterType() == "GhostBusterPreferRefDt" ||
       this->myOmtfConfig->getGhostBusterType() == "byLLH" || this->myOmtfConfig->getGhostBusterType() == "byFPLLH" ||
-      this->myOmtfConfig->getGhostBusterType() == "byRefLayer") {
+      this->myOmtfConfig->getGhostBusterType() == "byRefLayer" || this->myOmtfConfig->getGhostBusterType() == "byRefLayerAndHitQual") {
     setGhostBuster(new GhostBusterPreferRefDt(this->myOmtfConfig));
     edm::LogVerbatim("OMTFReconstruction") << "setting " << this->myOmtfConfig->getGhostBusterType() << std::endl;
   } else {
@@ -84,8 +84,8 @@ void OMTFProcessor<GoldenPatternType>::init(const edm::ParameterSet& edmCfg, edm
   }
 
   if (this->myOmtfConfig->usePhiBExtrapolationMB1() || this->myOmtfConfig->usePhiBExtrapolationMB2()) {
-    extrapolFactors.resize(2, std::vector<std::map<int, double> >(this->myOmtfConfig->nLayers()));
-    extrapolFactorsNorm.resize(2, std::vector<std::map<int, int> >(this->myOmtfConfig->nLayers()));
+    extrapolFactors.resize(2 * 3, std::vector<std::map<int, double> >(this->myOmtfConfig->nLayers()));
+    extrapolFactorsNorm.resize(2 * 3, std::vector<std::map<int, int> >(this->myOmtfConfig->nLayers()));
 
     //when useFloatingPointExtrapolation is true the extrapolFactors are not used,
     //all calculations are done in the extrapolateDtPhiBFloatPoint
@@ -349,6 +349,7 @@ template <class GoldenPatternType>
 int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFloatPoint(const int& refLogicLayer,
                                                                   const int& refPhi,
                                                                   const int& refPhiB,
+                                                                  const int& refHitSuperLayer,
                                                                   unsigned int targetLayer,
                                                                   const int& targetStubPhi,
                                                                   const int& targetStubQuality,
@@ -356,7 +357,7 @@ int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFloatPoint(const int& ref
                                                                   const int& targetStubR,
                                                                   const OMTFConfiguration* omtfConfig) {
   LogTrace("l1tOmtfEventPrint") << "\n"
-                                << __FUNCTION__ << ":" << __LINE__ << " refLogicLayer " << refLogicLayer
+                                << __FUNCTION__ << ":" << __LINE__ << " refLogicLayer " << refLogicLayer << " refHitSuperLayer " << refHitSuperLayer
                                 << " targetLayer " << targetLayer << std::endl;
   LogTrace("l1tOmtfEventPrint") << "refPhi " << refPhi << " refPhiB " << refPhiB << " targetStubPhi " << targetStubPhi
                                 << " targetStubQuality " << targetStubQuality << std::endl;
@@ -371,7 +372,15 @@ int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFloatPoint(const int& ref
     //throw cms::Exception("OMTFProcessor<GoldenPatternType>::extrapolateDtPhiB: wrong refStubLogicLayer " + std::to_string(refLogicLayer) );
   }
 
+  if(refHitSuperLayer == 1) {
+    rRefLayer = rRefLayer - 23.5 / 2;  //inner superlayer
+  }
+  else if (refHitSuperLayer == 3) { //using 3 here as in the L1Phase2MuDTPhDigi::slNum(), so value 2 is not used, what might not be optimal for FW,
+    rRefLayer = rRefLayer + 23.5 / 2;  //inner superlayer
+  }
+
   int reflLayerIndex = refLogicLayer == 0 ? 0 : 1;
+  reflLayerIndex = (refHitSuperLayer << 1) | reflLayerIndex;
 
   if (targetLayer == 0 || targetLayer == 2 || targetLayer == 4 || (targetLayer >= 10 && targetLayer <= 14)) {
     //all units are cm. Values from the CMS geometry
@@ -505,6 +514,7 @@ template <class GoldenPatternType>
 int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFixedPoint(const int& refLogicLayer,
                                                                   const int& refPhi,
                                                                   const int& refPhiB,
+                                                                  const int& refHitSuperLayer,
                                                                   unsigned int targetLayer,
                                                                   const int& targetStubPhi,
                                                                   const int& targetStubQuality,
@@ -514,6 +524,8 @@ int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFixedPoint(const int& ref
   int phiExtr = 0;  //delta phi extrapolated
 
   int reflLayerIndex = refLogicLayer == 0 ? 0 : 1;
+  reflLayerIndex = (refHitSuperLayer << 1) | reflLayerIndex;
+
   int extrFactor = 0;
 
   if (targetLayer == 0 || targetLayer == 2 || targetLayer == 4) {
@@ -539,8 +551,8 @@ int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFixedPoint(const int& ref
       //if given abs(targetStubEta) value is not present in the map, it is added with default value of 0
       //so it should be good. The only problem is that the map can grow...
       //TODO change to targetStubR when it is implemented in the FW
-      extrFactor = extrapolFactors[reflLayerIndex][targetLayer][abs(targetStubEta)];
-      //extrFactor = extrapolFactors[reflLayerIndex][targetLayer][abs(targetStubR)];
+      //extrFactor = extrapolFactors[reflLayerIndex][targetLayer][abs(targetStubEta)];
+      extrFactor = extrapolFactors[reflLayerIndex][targetLayer][abs(targetStubR)];
     } else {
       extrFactor = extrapolFactors[reflLayerIndex][targetLayer][0];
     }
@@ -565,10 +577,20 @@ int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiB(const MuonStubPtr& refSt
                                                         const MuonStubPtr& targetStub,
                                                         unsigned int targetLayer,
                                                         const OMTFConfiguration* omtfConfig) {
+  //0 is correlated segment, so middle of the chamber
+  // 1 is inner SL, 2 is outer.
+  //N.B. that in L1Phase2MuDTPhDigi::slNum() out SL is 3
+  int refHitSuperLayer = 0;
+  if(refStub->qualityHw == 2 || refStub->qualityHw == 0)
+    refHitSuperLayer =  1;
+  else if(refStub->qualityHw == 3 || refStub->qualityHw == 1)
+    refHitSuperLayer =  2;
+
   if (useFloatingPointExtrapolation)
     return OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFloatPoint(refStub->logicLayer,
                                                                          refStub->phiHw,
                                                                          refStub->phiBHw,
+                                                                         refHitSuperLayer,
                                                                          targetLayer,
                                                                          targetStub->phiHw,
                                                                          targetStub->qualityHw,
@@ -578,6 +600,7 @@ int OMTFProcessor<GoldenPatternType>::extrapolateDtPhiB(const MuonStubPtr& refSt
   return OMTFProcessor<GoldenPatternType>::extrapolateDtPhiBFixedPoint(refStub->logicLayer,
                                                                        refStub->phiHw,
                                                                        refStub->phiBHw,
+                                                                       refHitSuperLayer,
                                                                        targetLayer,
                                                                        targetStub->phiHw,
                                                                        targetStub->qualityHw,
@@ -721,10 +744,10 @@ void OMTFProcessor<GoldenPatternType>::processInput(unsigned int iProcessor,
                                     << "extrapolating ref hit to get the phi of the candidate" << std::endl;
       if (useFloatingPointExtrapolation)
         phiExtrp = extrapolateDtPhiBFloatPoint(
-            aRefHitDef.iRefLayer, phiRef, refStub->phiBHw, 2, 0, 6, 0, 0, this->myOmtfConfig);
+            aRefHitDef.iRefLayer, phiRef, refStub->phiBHw, 0, 2, 0, 6, 0, 0, this->myOmtfConfig);
       else
         phiExtrp = extrapolateDtPhiBFixedPoint(
-            aRefHitDef.iRefLayer, phiRef, refStub->phiBHw, 2, 0, 6, 0, 0, this->myOmtfConfig);
+            aRefHitDef.iRefLayer, phiRef, refStub->phiBHw, 0, 2, 0, 6, 0, 0, this->myOmtfConfig);
     }
 
     for (auto& itGP : this->theGPs) {
