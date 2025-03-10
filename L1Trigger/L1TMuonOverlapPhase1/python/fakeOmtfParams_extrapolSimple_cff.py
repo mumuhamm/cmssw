@@ -12,10 +12,10 @@ omtfParams = cms.ESProducer(
     "L1TMuonOverlapPhase1ParamsESProducer",
     patternsXMLFiles = cms.VPSet(
         #patterns used in the CMS from 19 March 2024
-        cms.PSet(patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_ExtraplMB1nadMB2SimplifiedFP_t17_classProb17_recalib2_minDP0_v3.xml")),
+        cms.PSet(patternsXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/Patterns_ExtraplMB1andMB2RFixedP_ValueP1Scale_DT_2_2_2_t35__classProb17_recalib2.xml")),
     ),
     #corresponds to the algorithm version used in the CMS from 19 March 2024
-    configXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/hwToLogicLayer_0x0009.xml"),
+    configXMLFile = cms.FileInPath("L1Trigger/L1TMuon/data/omtf_config/hwToLogicLayer_0x0209.xml"),
 )
 
 

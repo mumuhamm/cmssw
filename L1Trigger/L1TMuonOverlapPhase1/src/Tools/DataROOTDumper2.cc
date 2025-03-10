@@ -91,14 +91,44 @@ void DataROOTDumper2::initializeTTree() {
 
   ptGenPos = fs->make<TH1I>("ptGenPos", "ptGenPos, eta at vertex 0.8 - 1.24", 400, 0, 200);  //TODO
   ptGenNeg = fs->make<TH1I>("ptGenNeg", "ptGenNeg, eta at vertex 0.8 - 1.24", 400, 0, 200);
+
+
+  rootTree->Branch("nStubs", &omtfEvent.nStubs);
+  rootTree->Branch("stubProc", &omtfEvent.stubProc);
+  rootTree->Branch("stubPhi", &omtfEvent.stubPhi);
+  rootTree->Branch("stubPhiB", &omtfEvent.stubPhiB);
+  rootTree->Branch("stubEta", &omtfEvent.stubEta);
+  rootTree->Branch("stubEtaSigma", &omtfEvent.stubEtaSigma);
+  rootTree->Branch("stubQuality", &omtfEvent.stubQuality);
+  rootTree->Branch("stubBx", &omtfEvent.stubBx);
+  rootTree->Branch("stubDetId", &omtfEvent.stubDetId);
+  rootTree->Branch("stubType", &omtfEvent.stubType);
+  rootTree->Branch("stubTiming", &omtfEvent.stubTiming);
+  rootTree->Branch("stubLogicLayer", &omtfEvent.stubLogicLayer);
+
+
+
 }
+
+void DataROOTDumper2::observeEventBegin(const edm::Event& iEvent) {
+  clearOmtfStubs();
+  for (auto& input : inputInProcs)
+    input.reset();
+
+}
+
 
 void DataROOTDumper2::observeProcesorEmulation(unsigned int iProcessor,
                                                l1t::tftype mtfType,
-                                               const std::shared_ptr<OMTFinput>&,
+                                               const std::shared_ptr<OMTFinput>& input,
                                                const AlgoMuons& algoCandidates,
                                                const AlgoMuons& gbCandidates,
-                                               const std::vector<l1t::RegionalMuonCand>& candMuons) {}
+                                               const std::vector<l1t::RegionalMuonCand>& candMuons) {
+
+	unsigned int procIndx = omtfConfig->getProcIndx(iProcessor, mtfType);
+	inputInProcs[procIndx] = input;
+
+}
 
 void DataROOTDumper2::observeEventEnd(const edm::Event& iEvent,
                                       std::unique_ptr<l1t::RegionalMuonCandBxCollection>& finalCandidates) {
@@ -361,8 +391,9 @@ void DataROOTDumper2::observeEventEnd(const edm::Event& iEvent,
       }
 
       addOmtfCand(matchingResult.procMuon);
+      addOmtfStubsFromProc(matchingResult.muonCand->processor(),matchingResult.muonCand->trackFinderType());
       rootTree->Fill();
-
+      clearOmtfStubs();
       if (dumpKilledOmtfCands) {
         for (auto& killedCand : matchingResult.procMuon->getKilledMuons()) {
           omtfEvent.omtfQuality = 0;
@@ -403,3 +434,45 @@ void DataROOTDumper2::observeEventEnd(const edm::Event& iEvent,
 }
 
 void DataROOTDumper2::endJob() { edm::LogVerbatim("l1tOmtfEventPrint") << " evntCnt " << evntCnt << endl; }
+void DataROOTDumper2::clearOmtfStubs() {
+
+  omtfEvent.stubLogicLayer.clear();
+  omtfEvent.stubProc.clear();
+  omtfEvent.stubPhi.clear();
+  omtfEvent.stubPhiB.clear();
+  omtfEvent.stubEta.clear();
+  omtfEvent.stubEtaSigma.clear();
+  omtfEvent.stubQuality.clear();
+  omtfEvent.stubBx.clear();
+  omtfEvent.stubTiming.clear();
+  omtfEvent.stubDetId.clear();
+  omtfEvent.stubType.clear();
+  omtfEvent.nStubs = 0;
+}
+void DataROOTDumper2::addOmtfStubsFromProc(int iProc, l1t::tftype mtfType){
+
+  int procIndx = omtfConfig->getProcIndx(iProc, mtfType);
+
+  if (inputInProcs[procIndx]) {
+    auto& omtfInput = *inputInProcs[procIndx];
+    for (auto& layer : omtfInput.getMuonStubs()) {
+      for (auto& stub : layer) {
+              if (stub && (stub->type != MuonStub::Type::EMPTY)) {
+          omtfEvent.nStubs++;
+          omtfEvent.stubLogicLayer.push_back(stub->logicLayer);
+          omtfEvent.stubProc.push_back(procIndx);
+          omtfEvent.stubPhi.push_back(stub->phiHw);
+          omtfEvent.stubPhiB.push_back(stub->phiBHw);
+          omtfEvent.stubEta.push_back(stub->etaHw);
+          //omtfEvent.stubEtaSigma.push_back(stub->etaSigmaHw);
+          omtfEvent.stubQuality.push_back(stub->qualityHw);
+          omtfEvent.stubBx.push_back(stub->bx);
+          omtfEvent.stubTiming.push_back(stub->timing);
+          omtfEvent.stubDetId.push_back(stub->detId);
+          omtfEvent.stubType.push_back(stub->type);
+              }
+      }
+    }
+  }
+}
+

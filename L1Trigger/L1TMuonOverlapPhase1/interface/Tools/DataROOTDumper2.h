@@ -71,6 +71,19 @@ public:
 
     ~Hit() {}
   };
+  int nStubs = 0;
+  std::vector<int>  stubProc;
+  std::vector<int>  stubPhi;
+  std::vector<int>  stubPhiB;
+  std::vector<int>  stubEta;
+  std::vector<int>  stubEtaSigma;
+  std::vector<int>  stubQuality;
+  std::vector<int>  stubBx;
+  std::vector<int>  stubTiming;
+  std::vector<int>  stubLogicLayer;
+  //  std::vector<int>  stubIHit;
+  std::vector<int>  stubDetId;
+  std::vector<int>  stubType;
 
   std::vector<unsigned long> hits;
 };
@@ -89,7 +102,7 @@ public:
                                 const AlgoMuons& algoCandidates,
                                 const AlgoMuons& gbCandidates,
                                 const std::vector<l1t::RegionalMuonCand>& candMuons) override;
-
+  void observeEventBegin(const edm::Event& event) override;
   void observeEventEnd(const edm::Event& iEvent,
                        std::unique_ptr<l1t::RegionalMuonCandBxCollection>& finalCandidates) override;
 
@@ -97,6 +110,8 @@ public:
 
 private:
   void initializeTTree();
+  void clearOmtfStubs();
+  void addOmtfStubsFromProc(int,l1t::tftype);
 
   CandidateSimMuonMatcher* candidateSimMuonMatcher = nullptr;
 
@@ -110,10 +125,9 @@ private:
   TH1I* ptGenNeg = nullptr;
 
   std::vector<TH2*> hitVsPt;
-
   bool dumpKilledOmtfCands = false;
-
   bool usePropagation = false;
+  std::vector<std::shared_ptr<OMTFinput> > inputInProcs;
 };
 
 #endif /* L1T_OmtfP1_TOOLS_DATAROOTDUMPER2_H_ */
