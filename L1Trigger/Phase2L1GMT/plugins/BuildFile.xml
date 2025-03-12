@@ -3,7 +3,16 @@
   <use name="DataFormats/L1TMuon"/>
   <use name="DataFormats/L1Trigger"/>
   <use name="L1Trigger/Phase2L1GMT"/>
+  <use name="FWCore/Framework"/>
+  <use name="FWCore/Utilities"/>
+  <use name="FWCore/ServiceRegistry"/>
+  <use name="CommonTools/UtilAlgos"/>
+  <use name="DataFormats/L1TrackTrigger"/>
+  <use name="SimDataFormats/Associations"/>
+  <use name="SimDataFormats/TrackingAnalysis"/>
+  <use name="SimDataFormats/GeneratorProducts"/>
   <use name="hepmc"/>
+  <use name="hepmc3"/>
   <use name="hls"/>
   <use name="root"/>
   <flags REM_CXXFLAGS="-fsanitize=undefined" FILE="Phase2L1TGMTProducer.cc"/>

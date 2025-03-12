@@ -1,3 +1,12 @@
+<use name="FWCore/Framework"/>
+<use name="FWCore/Utilities"/>
+<use name="FWCore/ServiceRegistry"/>
+<use name="CommonTools/UtilAlgos"/>
+<use name="DataFormats/L1TrackTrigger"/>
+<use name="SimDataFormats/Associations"/>
+<use name="SimDataFormats/TrackingAnalysis"/>
+<use name="SimDataFormats/GeneratorProducts"/>
+<use name="ROOT"/>
 <use name="FWCore/ParameterSet"/>
 <use name="DataFormats/L1TMuonPhase2"/>
 <use name="DataFormats/L1TMuon"/>
@@ -6,6 +15,8 @@
 <use name="L1Trigger/L1TTwinMux"/>
 <use name="L1Trigger/L1TMuonEndCapPhase2"/>
 <use name="hls"/>
+<use name="hepmc"/>
+<use name="hepmc3"/>
 <export>
   <lib name="1"/>
 </export>

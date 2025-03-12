@@ -81,7 +81,7 @@ public:
   std::vector<int>  stubBx;
   std::vector<int>  stubTiming;
   std::vector<int>  stubLogicLayer;
-  //  std::vector<int>  stubIHit;
+  //std::vector<int>  stubIHit;
   std::vector<int>  stubDetId;
   std::vector<int>  stubType;
 
@@ -98,7 +98,7 @@ public:
 
   void observeProcesorEmulation(unsigned int iProcessor,
                                 l1t::tftype mtfType,
-                                const std::shared_ptr<OMTFinput>&,
+                                const std::shared_ptr<OMTFinput>& input,
                                 const AlgoMuons& algoCandidates,
                                 const AlgoMuons& gbCandidates,
                                 const std::vector<l1t::RegionalMuonCand>& candMuons) override;
@@ -126,7 +126,7 @@ private:
 
   std::vector<TH2*> hitVsPt;
   bool dumpKilledOmtfCands = false;
-  bool usePropagation = false;
+  bool usePropagation = true;
   std::vector<std::shared_ptr<OMTFinput> > inputInProcs;
 };
 

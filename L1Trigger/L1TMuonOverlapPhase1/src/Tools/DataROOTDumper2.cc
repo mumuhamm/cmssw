@@ -22,7 +22,9 @@
 DataROOTDumper2::DataROOTDumper2(const edm::ParameterSet& edmCfg,
                                  const OMTFConfiguration* omtfConfig,
                                  CandidateSimMuonMatcher* candidateSimMuonMatcher)
-    : EmulationObserverBase(edmCfg, omtfConfig), candidateSimMuonMatcher(candidateSimMuonMatcher) {
+    : EmulationObserverBase(edmCfg, omtfConfig),
+     candidateSimMuonMatcher(candidateSimMuonMatcher),
+     inputInProcs(omtfConfig->processorCnt()) {
   edm::LogVerbatim("l1tOmtfEventPrint") << " omtfConfig->nTestRefHits() " << omtfConfig->nTestRefHits()
                                         << " event.omtfGpResultsPdfSum.num_elements() " << endl;
   initializeTTree();
@@ -126,7 +128,8 @@ void DataROOTDumper2::observeProcesorEmulation(unsigned int iProcessor,
                                                const std::vector<l1t::RegionalMuonCand>& candMuons) {
 
 	unsigned int procIndx = omtfConfig->getProcIndx(iProcessor, mtfType);
-	inputInProcs[procIndx] = input;
+  //std::cout << "getProcIndx(" << iProcessor << ", " << mtfType << ") = " << procIndx << std::endl;
+  inputInProcs[procIndx] = input;
 
 }
 
@@ -452,7 +455,7 @@ void DataROOTDumper2::clearOmtfStubs() {
 void DataROOTDumper2::addOmtfStubsFromProc(int iProc, l1t::tftype mtfType){
 
   int procIndx = omtfConfig->getProcIndx(iProc, mtfType);
-
+ 
   if (inputInProcs[procIndx]) {
     auto& omtfInput = *inputInProcs[procIndx];
     for (auto& layer : omtfInput.getMuonStubs()) {

@@ -27,19 +27,12 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 process.load("TrackingTools.RecoGeometry.RecoGeometries_cff")
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(2000),
+    input = cms.untracked.int32(1000000),
     output = cms.optional.untracked.allowed(cms.int32,cms.PSet)
 )
 
-# Input source
-# prefixPath="/scratch_cmsse/akalinow/CMS/Data/SingleMu/12_5_2_p1_04_04_2023/SingleMu_ch2_OneOverPt_12_5_2_p1_04_04_2023/12_5_2_p1_04_04_2023/230404_084346/0000/" #second sample
-#prefixPath = "/scratch_cmsse/akalinow/CMS/Data/SingleMu/13_1_0_03_01_2024/SingleMu_ch2_OneOverPt_Run2029_13_1_0_03_01_2024/13_1_0_03_01_2024/240103_094121/0000/" #first sample
-#prefixPath = "/scratch_cmsse/akalinow/CMS/Data/SingleMu/13_1_0_04_01_2024/"
-#prefixPath = "/scratch_cmsse/akalinow/CMS/Data/SingleMu/13_1_0_13_02_2024/"
-#prefixPath = '/scratch_cmsse/akalinow/CMS/Data/DisplacedMu/14_1_0pre3_11_06_2024_Dxy5m_PhaseII/'
-#prefixPath = '/scratch/rkomuda/Magisterium/Analysis/'
-prefixPath="/scratch_cmsse/alibordi/data/simPrivateProduction/Displaced_cTau5m_XTo2LLTo4Mu_condPhase2_realistic/XTo2LLPTo4Mu_CTau5m_Phase2Exotic/231203_175643/0000" #1st Alibordi's sample
-# prefixPath="/scratch_cmsse/alibordi/data/simPrivateProduction/Displaced_Dxy3m_pT0To1000_condPhase2_realistic/DisplacedMu_ch0_iPt0_Run2029_13_1_0_01_12_2023/13_1_0_01_12_2023/231201_121719/0000" #2nd Alibordi's sample
+
+prefixPath = "/eos/cms/store/group/dpg_trigger/comm_trigger/L1Trigger/OMTF/PrivateProductionForOMTFStudy/Displaced_cTau5m_XTo2LLTo4Mu_condPhase2_realistic/XTo2LLPTo4Mu_CTau5m_Phase2Exotic/231203_175643/0000" #1st Alibordi's sample
 
 
 process.source = cms.Source("PoolSource",
@@ -100,7 +93,7 @@ process.esProd = cms.EDAnalyzer("EventSetupRecordDataGetter",
 ############################################
 # Output ROOT file service
 process.TFileService = cms.Service("TFileService", 
-                                    fileName = cms.string('test.root'), 
+                                    fileName = cms.string('whyOMTFisCalled_PhaseIIGMTDataDumper.root'), 
                                     closeFileFast = cms.untracked.bool(True) )
 ############################################
 ##
@@ -126,10 +119,19 @@ process.dtTriggerPhase2PrimitiveDigis.scenario = 0
 process.L1TMuonPath = cms.Path(process.CalibratedDigis * process.dtTriggerPhase2PrimitiveDigis )
 ############################################
 process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorAlong_cfi")
-############################################
-#Phase2 GMT
+#############################################Phase2 GMT
 process.load("L1Trigger.Phase2L1GMT.gmt_cff")
-process.l1tGMTMuons.isolation.IsodumpForHLS = 0
+"""
+gmt_modules = ["gmtStubs", "gmtKMTFMuons", "gmtFwdMuons", "gmtSAMuons", "gmtTkMuons"]
+for mod_name in gmt_modules:
+    if hasattr(process, mod_name):
+        mod = getattr(process, mod_name)
+        print(f"Attributes of {mod_name}:")
+        print(dir(mod))  # Lists all attributes of the module
+        print("\n")
+
+
+#process.l1tGMTMuons.isolation.IsodumpForHLS = 0
 process.l1tGMTMuons.trackingParticleInputTag = cms.InputTag("mix", "MergedTrackTruth")
 process.l1tGMTMuons.mcTruthTrackInputTag = cms.InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks")
 process.l1tGMTMuons.dumpToRoot = cms.bool(True)
@@ -143,7 +145,46 @@ process.l1tGMTMuons.muonBXMin=0
 process.l1tGMTMuons.muonBXMax=1
 # process.l1tGMTMuons.minTrackStubs=2
 
-process.GMTPhase2Path = cms.Path(process.L1TrackTrigger*process.l1tGMTStubs*process.l1tGMTMuons)
+process.GMTPhase2Path = cms.Path(
+    process.L1TrackTrigger +
+    process.l1tGMTStubs +
+    process.l1tGMTMuons
+)
+"""
+# Explicitly import the required modules from the Phase2L1GMT package
+from L1Trigger.Phase2L1GMT.gmtStubs_cfi import *
+from L1Trigger.Phase2L1GMT.gmtKMTFMuons_cfi import *
+from L1Trigger.Phase2L1GMT.gmtFwdMuons_cfi import *
+from L1Trigger.Phase2L1GMT.gmtSAMuons_cfi import *
+from L1Trigger.Phase2L1GMT.gmtTkMuons_cfi import *
+
+process.l1tGMTMuons.trackingParticleInputTag = cms.InputTag("mix", "MergedTrackTruth")
+process.l1tGMTMuons.mcTruthTrackInputTag = cms.InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks")
+process.l1tGMTMuons.dumpToRoot = cms.bool(True)
+process.l1tGMTMuons.muonBXMin = cms.int32(0)
+process.l1tGMTMuons.muonBXMax = cms.int32(1)
+
+process.l1tGMTStubs.Endcap.verbose = cms.int32(0)
+process.l1tGMTStubs.Barrel.verbose = cms.int32(0)
+process.l1tGMTStubs.Endcap.minBX = cms.int32(0)
+process.l1tGMTStubs.Endcap.maxBX = cms.int32(1)
+process.l1tGMTStubs.Barrel.minBX = cms.int32(0)
+process.l1tGMTStubs.Barrel.maxBX = cms.int32(1)
+
+process.l1tGMTMuons = cms.Sequence(
+    gmtKMTFMuons *
+    gmtFwdMuons *
+    gmtSAMuons *
+    gmtTkMuons
+)
+
+process.GMTPhase2Path = cms.Path(
+    process.L1TrackTrigger +
+    process.l1tGMTStubs +
+    process.l1tGMTMuons
+)
+
+#process.GMTPhase2Path = cms.Path(process.L1TrackTrigger * process.l1tGMTStubs * process.l1tGMTMuons)
 ############################################
 ####OMTF Emulator
 import L1Trigger.L1TMuonOverlapPhase2.simOmtfPhase2Digis_DT_2_2_2_cff

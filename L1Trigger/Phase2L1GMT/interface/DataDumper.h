@@ -8,15 +8,15 @@
 
 #ifndef L1Trigger_Phase2L1GMT_DATADUMPER_h
 #define L1Trigger_Phase2L1GMT_DATADUMPER_h
-
-#include "L1Trigger/Phase2L1GMT/interface/PreTrackMatchedMuon.h"
-#include "L1Trigger/Phase2L1GMT/interface/TPSAlgorithm.h"
-//#include "SimTracker/TrackTriggerAssociation/interface/TTTrackAssociationMap.h"
 #include "SimDataFormats/Associations/interface/TTTrackAssociationMap.h"
+#include "L1Trigger/Phase2L1GMT/interface/PreTrackMatchedMuon.h"
+
+//#include "SimTracker/TrackTriggerAssociation/interface/TTTrackAssociationMap.h"
 #include "FWCore/Utilities/interface/EDGetToken.h"
 #include "FWCore/Framework/interface/Event.h"
-//#USER_CUDA_FLAGS='--expt-relaxed-constexpr' USER_CXXFLAGS='-Wno-register -fsyntax-only' scram build -k -j 32 COMPILER='llvm compile'
+
 #include "TTree.h"
+#include "TFile.h"
 
 namespace Phase2L1GMT {
 
@@ -47,7 +47,7 @@ struct TrackMatchedMuonRecord {
   //from event
   int eventNum = 0;
 
-  std::vector<Phase2L1GMT::propagation_t> propagatedStates;
+  std::vector<Phase2L1GMT::hybridStub_t> propagatedStates;
 
   std::vector<unsigned char> deltaCoords1;
   std::vector<unsigned char> deltaCoords2;
@@ -77,7 +77,7 @@ struct TrackMatchedMuonRecord {
     isGlobal = 0;
     quality = 0;
     eventNum = 0;
-    for (auto& state : propagatedStates) state = propagation_t();
+    for (auto& state : propagatedStates) state = hybridStub_t();
     for (auto& coord : deltaCoords1) coord = 0;
     for (auto& coord : deltaCoords2) coord = 0;
     for (auto& eta : deltaEta1) eta = 0;
