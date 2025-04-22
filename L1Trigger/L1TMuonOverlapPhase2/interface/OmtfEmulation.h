@@ -9,15 +9,17 @@
 #define L1Trigger_L1TMuonOverlapPhase2_OmtfEmulation_h
 
 #include "DataFormats/L1DTTrackFinder/interface/L1Phase2MuDTPhContainer.h"
+#include "DataFormats/L1TMuonPhase2/interface/SAMuon.h"
 #include "FWCore/Utilities/interface/EDGetToken.h"
 #include "L1Trigger/L1TMuonOverlapPhase1/interface/Omtf/OMTFReconstruction.h"
 #include "L1Trigger/L1TMuonOverlapPhase2/interface/OmtfPhase2AngleConverter.h"
+#include "L1Trigger/L1TMuonOverlapPhase2/interface/InputMakerPhase2.h"
 
 class OmtfEmulation : public OMTFReconstruction {
 public:
   OmtfEmulation(const edm::ParameterSet& edmParameterSet,
                 MuStubsInputTokens& muStubsInputTokens,
-                edm::EDGetTokenT<L1Phase2MuDTPhContainer> inputTokenDTPhPhase2);
+                MuStubsPhase2InputTokens& muStubsPhase2InputTokens);
 
   void beginJob();
 
@@ -27,10 +29,21 @@ public:
                     const edm::ESGetToken<MagneticField, IdealMagneticFieldRecord>& magneticFieldEsToken,
                     const edm::ESGetToken<Propagator, TrackingComponentsRecord>& propagatorEsToken) override;
 
-private:
-  edm::EDGetTokenT<L1Phase2MuDTPhContainer> inputTokenDTPhPhase2;
+  //RegionalMuonCandBxCollection is filled for backward compatibility of analyzers etc.
+  std::unique_ptr<l1t::SAMuonCollection> run(const edm::Event& iEvent,
+                                             const edm::EventSetup& evSetup,
+                                             std::unique_ptr<l1t::RegionalMuonCandBxCollection>& candidates);
 
+private:
+  MuStubsPhase2InputTokens& muStubsPhase2InputTokens;
   unique_ptr<PtAssignmentBase> ptAssignment;
+
+  FinalMuons convertToOuputScalesPhase2(l1t::tftype mtfType, const AlgoMuons& gbCandidates);
+
+  l1t::SAMuonCollection getSAMuons(unsigned int iProcessor,
+                                   l1t::tftype mtfType,
+                                   FinalMuons& finalMuons,
+                                   bool uncostrainedPt);
 };
 
 #endif /* L1Trigger_L1TMuonOverlapPhase2_OmtfEmulation_h */
