@@ -10,6 +10,7 @@
 
 #include "L1Trigger/Phase2L1GMT/interface/L1TPhase2GMTEndcapStubProcessor.h"
 #include "L1Trigger/Phase2L1GMT/interface/L1TPhase2GMTBarrelStubProcessor.h"
+#include "L1Trigger/Phase2L1GMT/interface/DataDumper.h"
 
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/ConsumesCollector.h"
@@ -39,6 +40,9 @@ private:
   L1TPhase2GMTEndcapStubProcessor* procEndcap_;
   L1TPhase2GMTBarrelStubProcessor* procBarrel_;
   L1TMuon::GeometryTranslator* translator_;
+  edm::EDGetTokenT< TTTrackAssociationMap< Ref_Phase2TrackerDigi_ > > ttTrackMCTruthToken_;
+  edm::EDGetTokenT< std::vector< TrackingParticle > > trackingParticleToken_;
+  Phase2L1GMT::DataDumper dataDumper;
   int verbose_;
 };
 
@@ -50,6 +54,9 @@ Phase2L1TGMTStubProducer::Phase2L1TGMTStubProducer(const edm::ParameterSet& iCon
       srcRPC_(consumes<RPCDigiCollection>(iConfig.getParameter<edm::InputTag>("srcRPC"))),
       procEndcap_(new L1TPhase2GMTEndcapStubProcessor(iConfig.getParameter<edm::ParameterSet>("Endcap"))),
       procBarrel_(new L1TPhase2GMTBarrelStubProcessor(iConfig.getParameter<edm::ParameterSet>("Barrel"))),
+      ttTrackMCTruthToken_(consumes< TTTrackAssociationMap< Ref_Phase2TrackerDigi_ > >(iConfig.getParameter<edm::InputTag>("mcTruthTrackInputTag"))),
+      trackingParticleToken_(consumes< std::vector< TrackingParticle > >(iConfig.getParameter<edm::InputTag>("trackingParticleInputTag"))),
+      dataDumper(ttTrackMCTruthToken_, trackingParticleToken_, iConfig.getParameter<bool>("dumpToRoot")  ), 
       verbose_(iConfig.getParameter<int>("verbose")) {
   produces<l1t::MuonStubCollection>("kmtf");
   produces<l1t::MuonStubCollection>("tps");
@@ -213,6 +220,10 @@ void Phase2L1TGMTStubProducer::fillDescriptions(edm::ConfigurationDescriptions& 
                                    0,
                                });
     desc.add<edm::ParameterSetDescription>("Barrel", psd0);
+    desc.add<edm::InputTag>("mcTruthTrackInputTag", edm::InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks"));
+    desc.add<edm::InputTag>("trackingParticleInputTag", edm::InputTag("mix", "MergedTrackTruth"));
+    desc.add<bool>("dumpToRoot", false); 
+
   }
   descriptions.add("gmtStubs", desc);
 }

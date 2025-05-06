@@ -3,6 +3,8 @@
   <use name="DataFormats/L1TMuon"/>
   <use name="DataFormats/L1Trigger"/>
   <use name="L1Trigger/Phase2L1GMT"/>
+  <use name="CommonTools/UtilAlgos"/>
+  <use name="SimTracker/TrackTriggerAssociation"/>
   <use name="hepmc"/>
   <use name="hls"/>
   <use name="root"/>

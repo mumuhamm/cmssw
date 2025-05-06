@@ -13,6 +13,7 @@
 #include "L1Trigger/Phase2L1GMT/interface/PreTrackMatchedMuon.h"
 #include "L1Trigger/Phase2L1GMT/interface/TPSLUTs.h"
 #include <iostream>
+#include "L1Trigger/Phase2L1GMT/interface/HybridStub.h"
 
 namespace Phase2L1GMT {
 
@@ -36,18 +37,8 @@ namespace Phase2L1GMT {
   const ap_uint<BITSPROP> PROPMAX = ~ap_uint<BITSPROP>(0);
   const ap_uint<BITSSIGMACOORD> SIGMAMAX = ~ap_uint<BITSSIGMACOORD>(0);
   const ap_uint<BITSSIGMACOORD> SIGMAMIN = 2;
+  
 
-  struct propagation_t {
-    ap_int<BITSSTUBCOORD> coord1;
-    ap_uint<BITSSIGMACOORD> sigma_coord1;
-    ap_int<BITSSTUBCOORD> coord2;
-    ap_uint<BITSSIGMACOORD> sigma_coord2;
-    ap_int<BITSSTUBETA> eta;
-    ap_uint<BITSSIGMAETA> sigma_eta1;
-    ap_uint<BITSSIGMAETA> sigma_eta2;
-    ap_uint<1> valid;
-    ap_uint<1> is_barrel;
-  };
 
   struct match_t {
     ap_uint<BITSMATCHQUALITY - 2> quality;
