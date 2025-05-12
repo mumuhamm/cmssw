@@ -222,7 +222,7 @@ void Phase2L1TGMTStubProducer::fillDescriptions(edm::ConfigurationDescriptions& 
     desc.add<edm::ParameterSetDescription>("Barrel", psd0);
     desc.add<edm::InputTag>("mcTruthTrackInputTag", edm::InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks"));
     desc.add<edm::InputTag>("trackingParticleInputTag", edm::InputTag("mix", "MergedTrackTruth"));
-    desc.add<bool>("dumpToRoot", false); 
+    desc.add<bool>("dumpToRoot", true); 
 
   }
   descriptions.add("gmtStubs", desc);

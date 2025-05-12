@@ -1,4 +1,5 @@
 import FWCore.ParameterSet.Config as cms
+process = cms.Process("L1Phase2GMTEmulation")
 from pathlib import Path
 import os
 import random
@@ -16,9 +17,7 @@ dumpHitsFileName = 'OMTFHits_patsminDP0_v3_MuonMatcher_smoothStdDev_hwToL0X0209'
 version = 'CMSSW_15_1_0_pre2_PhaseIIGMT_ExistingV1' + timestamp 
 
 import numpy as np
-from Configuration.Eras.Era_Phase2C17I13M9_cff import Phase2C17I13M9
 
-process = cms.Process('L1REPROCESS',Phase2C17I13M9)
 
 # import of standard configurations
 process.load('Configuration.StandardSequences.Services_cff')
@@ -26,16 +25,23 @@ process.load('SimGeneral.HepPDTESSource.pythiapdt_cfi')
 process.load('FWCore.MessageService.MessageLogger_cfi')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load('SimGeneral.MixingModule.mixNoPU_cfi')
-#process.load('Configuration.Geometry.GeometryExtended2026D114Reco_cff')
-#process.load('Configuration.Geometry.GeometryExtended2026D95Reco_cff')
+#process.load("Configuration.StandardSequences.GeometryDB_cff")
+#process.load("Configuration.StandardSequences.GeometryIdeal_cff")
+# Geometry configuration
+process.load('Geometry.CMSCommonData.cmsExtendedGeometryRun4D116XML_cfi')
 process.load('Configuration.Geometry.GeometryDD4hep_cff')
-process.load('Configuration.Geometry.GeometryDD4hepExtendedRun4D96Reco_cff')
-#process.load('Configuration.Geometry.GeometryDD4hepExtendedRun4D114Reco_cff')
-#process.load("Configuration.Geometry.GeometryDD4hepExtendedRun4D110Reco_cff")
-#process.load("Configuration.Geometry.GeometryDD4hepExtendedRun4D110_cff")
-#process.load("Geometry.MuonNumbering.muonGeometryConstants_cff")
-
-
+process.load('Configuration.Geometry.GeometryDD4hepExtendedRun4D116Reco_cff')
+process.load('Geometry.MuonNumbering.muonGeometryConstants_cff')
+process.load('Geometry.MuonNumbering.muonOffsetESProducer_cff')
+process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
+from Configuration.AlCa.GlobalTag import GlobalTag
+#process.GlobalTag = GlobalTag(process.GlobalTag, '140X_mcRun4_realistic_v4', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '131X_mcRun4_realistic_v5', '') 
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic_T25', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, '150X_mcRun4_realistic_v1', '')
+from Configuration.AlCa.autoCond import autoCond
+print("Available keys in autoCond:")
+for k in autoCond: print(k)
 
 process.load("TrackingTools.RecoGeometry.RecoGeometries_cff")
 process.load("TrackingTools.TrackRefitter.TracksToTrajectories_cff")
@@ -44,14 +50,13 @@ process.load('Configuration.StandardSequences.RawToDigi_cff')
 process.load('Configuration.StandardSequences.L1TrackTrigger_cff')
 process.load('Configuration.StandardSequences.SimL1Emulator_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
-process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
-process.load("TrackingTools.RecoGeometry.RecoGeometries_cff")
+
 
 
 
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(2000),
+    input = cms.untracked.int32(20000),
     output = cms.optional.untracked.allowed(cms.int32,cms.PSet)
 )
 
@@ -96,32 +101,13 @@ process.MessageLogger.debugModules = ['gmtDataDumper','EndcapStub','BarrelStub',
 process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32(1)
 process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 
-# Geometry
-from Configuration.AlCa.GlobalTag import GlobalTag
-#process.GlobalTag = GlobalTag(process.GlobalTag, '140X_mcRun4_realistic_v4', '')
-process.GlobalTag = GlobalTag(process.GlobalTag, '131X_mcRun4_realistic_v5', '') 
-#process.GlobalTag = GlobalTag(process.GlobalTag, '150X_mcRun4_realistic_v1', '')
-from Configuration.AlCa.autoCond import autoCond
-print("Available keys in autoCond:")
-for k in autoCond: print(k)
-
-
-process.esProd = cms.EDAnalyzer("EventSetupRecordDataGetter",
-   toGet = cms.VPSet(
-      cms.PSet(record = cms.string('L1TMuonOverlapParamsRcd'),
-               data = cms.vstring('L1TMuonOverlapParams'))
-                   ),
-   verbose = cms.untracked.bool(False)
-)
-
-# Output ROOT file service
-process.TFileService = cms.Service("TFileService", 
-                                    fileName = cms.string(version + '.root'), 
-                                    closeFileFast = cms.untracked.bool(True) )
 
 
 
 
+
+
+"""
 #Calibrate Digi
 process.load("L1Trigger.DTTriggerPhase2.CalibratedDigis_cfi")
 process.CalibratedDigis.dtDigiTag = "simMuonDTDigis"
@@ -133,7 +119,7 @@ process.dtTriggerPhase2PrimitiveDigis.digiTag = cms.InputTag("CalibratedDigis")
 process.dtTriggerPhase2PrimitiveDigis.debug = False
 process.dtTriggerPhase2PrimitiveDigis.dump = False
 process.dtTriggerPhase2PrimitiveDigis.scenario = 0
-
+"""
 
 
 
@@ -149,7 +135,7 @@ process.gmtStubs.srcRPC = cms.InputTag("simMuonRPCDigis")
 process.gmtStubs.trackingParticleInputTag = cms.InputTag("mix", "MergedTrackTruth")
 process.gmtStubs.mcTruthTrackInputTag = cms.InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks")
 process.gmtStubs.dumpToRoot = True
-process.gmtStubs.Endcap.verbose=0
+process.gmtStubs.Endcap.verbose=1
 process.gmtStubs.Barrel.verbose=0
 process.gmtStubs.Endcap.minBX=0
 process.gmtStubs.Endcap.maxBX=1
@@ -159,10 +145,19 @@ process.gmtStubs.Barrel.minPhiQuality=0
 process.gmtStubs.Barrel.minThetaQuality=0
 
 
+process.dumpED = cms.EDAnalyzer("EventContentAnalyzer")
+process.dumpES = cms.EDAnalyzer("PrintEventSetupContent")
+
 process.GMTPhase2Seq = cms.Sequence(process.gmtStubs)
 process.endjob_step = cms.EndPath(process.endOfProcess)
-process.L1TPhase2GMTPath = cms.Path(process.CalibratedDigis * process.dtTriggerPhase2PrimitiveDigis * process.GMTPhase2Seq)
+process.L1TPhase2GMTPath = cms.Path(process.GMTPhase2Seq)
+#process.L1TPhase2GMTPath = cms.Path(process.CalibratedDigis * process.dtTriggerPhase2PrimitiveDigis * process.GMTPhase2Seq)
 process.schedule = cms.Schedule(process.L1TPhase2GMTPath, process.endjob_step)
+
+# Output ROOT file service
+process.TFileService = cms.Service("TFileService", 
+                                    fileName = cms.string(version + '.root'), 
+                                    closeFileFast = cms.untracked.bool(True) )
 
 process.options.numberOfThreads = 1
 process.options.numberOfStreams = 0
