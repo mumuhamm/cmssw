@@ -5,7 +5,7 @@ gmtTkMuons = cms.EDProducer('Phase2L1TGMTTkMuonProducer',
                      minTrackStubs = cms.int32(4),     
                      muonBXMin = cms.int32(0),
                      muonBXMax = cms.int32(0),
-                            verbose   = cms.int32(0),     
+                     verbose   = cms.int32(0),     
                      trackConverter  = cms.PSet(
                          verbose = cms.int32(0)
                      ),

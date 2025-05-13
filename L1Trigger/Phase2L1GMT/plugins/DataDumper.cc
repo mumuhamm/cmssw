@@ -1,8 +1,6 @@
-/*
- * DataDumper.cc
- *
- *  Created on: Nov 5, 2021
- *      Author: kbunkow
+/* DataDumper.cc
+ * Started by : kbunkow
+ * modification : alibordi
  */
 
 //The includes in the PreTrackMatchedMuons and other places have no the proper includes of the below files,
@@ -40,6 +38,7 @@ void DataDumper::initializeTTree() {
   edm::Service<TFileService> fs;
   
   rootTree = fs->make<TTree>("GmtMuonTree", "");
+   std::cout << "DataDumper: TTree initialized successfully!" <<"\n";
   rootTree->Branch("tpPt", &record.tpPt);
   rootTree->Branch("tpEta", &record.tpEta);
   rootTree->Branch("tpPhi", &record.tpPhi);
@@ -88,15 +87,25 @@ void DataDumper::getHandles(const edm::Event& event) {
 
 void DataDumper::process(PreTrackMatchedMuon& preTrackMatchedMuon) {
 
-  if(!rootTree) {  
-    return;}
+  if(!rootTree) { 
+    edm::LogError("DataDumper") << "rootTree is not initialized!";
+        return; 
+    }
+    std::cout << "DataDumper: process() called for event: " << eventNum << std::endl;
   record.reset();
   record.eventNum = eventNum;
+   edm::LogInfo("DataDumper") << "process() method called for event: " << eventNum;
 
   auto& ttTrackPtr = preTrackMatchedMuon.trkPtr();
+  if (preTrackMatchedMuon.trkPtr().isNull()) {
+    std::cout << "DataDumper: PreTrackMatchedMuon has a null track pointer." << std::endl;
+    edm::LogWarning("DataDumper") << "PreTrackMatchedMuon has a null track pointer.";
+    return;
+}
+std::cout << "DataDumper: PreTrackMatchedMuon has a valid track pointer." << std::endl;
 
   if(ttTrackPtr.isNull()){
-  //  rootTree->Fill();
+    //rootTree->Fill();
   return;
   }
   //from ttTrack
@@ -106,6 +115,9 @@ void DataDumper::process(PreTrackMatchedMuon& preTrackMatchedMuon) {
   record.tttPhi = preTrackMatchedMuon.phi();
   record.tttZ0 = preTrackMatchedMuon.z0();
   record.tttD0 = preTrackMatchedMuon.d0();
+  std::cout << "DataDumper: Track data - pt: " << record.tttPt
+              << ", eta: " << record.tttEta
+              << ", phi: " << record.tttPhi << std::endl;
 
   LogTrace("gmtDataDumper")<<"DataDumper::process(): preTrackMatchedMuon pt: "<<record.tttPt<<" eta "<<record.tttEta<<" phi "<<record.tttPhi;
   std::cout<<"!!!!!!!!!!!!!!!!!!!!!!!Begin of MUON!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
@@ -118,15 +130,18 @@ void DataDumper::process(PreTrackMatchedMuon& preTrackMatchedMuon) {
 
   if(tpMatchedToL1MuCand.isNonnull() ) {
     LogTrace("gmtDataDumper")<<" findTrackingParticlePtr() - found matching TrackingParticle";
+    try {
+      //something not good here, crashing
+      if(mcTruthTTTrackHandle->isGenuine(ttTrackPtr))
+        record.matching = 3;
+      else if(mcTruthTTTrackHandle->isLooselyGenuine(ttTrackPtr))
+        record.matching = 2;
 
-    //something not good here, crashing
-    if(mcTruthTTTrackHandle->isGenuine(ttTrackPtr))
-      record.matching = 3;
-    else if(mcTruthTTTrackHandle->isLooselyGenuine(ttTrackPtr))
-      record.matching = 2;
-
-    //record.matching = 2;
+    } catch(const std::exception& e) {
+      edm::LogError("gmtDataDumper") << "Error in findTrackingParticlePtr(): " << e.what();
+    }
   }
+
   else {
     LogTrace("gmtDataDumper")<<" findTrackingParticlePtr() - nothing found";
     if(!muonTrackingParticlesFilled) {

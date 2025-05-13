@@ -64,6 +64,8 @@ void Phase2L1TGMTTkMuonProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<edm::Ptr<l1t::TrackerMuon::L1TTTrackType> > tracks;
   for (uint i = 0; i < trackHandle->size(); ++i) {
     edm::Ptr<l1t::TrackerMuon::L1TTTrackType> track(trackHandle, i);
+    std::cout << "Track " << i << ": pt = " << track->momentum().perp() << ", eta = " << track->momentum().eta()
+              << ", phi = " << track->momentum().phi() << "\n";
     if (track->momentum().transverse() < 2.0)
       continue;
     if (track->getStubRefs().size() >= (unsigned int)(minTrackStubs_))
@@ -90,11 +92,45 @@ void Phase2L1TGMTTkMuonProducer::beginStream(edm::StreamID) {}
 void Phase2L1TGMTTkMuonProducer::endStream() {}
 
 void Phase2L1TGMTTkMuonProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
-  //The following says we do not know what parameters are allowed so do no validation
-  // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
-  desc.setUnknown();
-  descriptions.addDefault(desc);
+
+  // Top-level parameters
+  desc.add<edm::InputTag>("srcTracks", edm::InputTag("l1tTTTracksFromTrackletEmulation:Level1TTTracks"));
+  desc.add<edm::InputTag>("srcStubs", edm::InputTag("gmtStubs:tps"));
+  desc.add<int>("minTrackStubs", 4);
+  desc.add<int>("muonBXMin", 0);
+  desc.add<int>("muonBXMax", 0);
+  desc.add<int>("verbose", 0);
+
+  // Nested PSets
+  edm::ParameterSetDescription trackConverterDesc;
+  trackConverterDesc.add<int>("verbose", 0);
+  desc.add<edm::ParameterSetDescription>("trackConverter", trackConverterDesc);
+
+  edm::ParameterSetDescription trackMatchingDesc;
+  trackMatchingDesc.add<int>("verbose", 0);
+  desc.add<edm::ParameterSetDescription>("trackMatching", trackMatchingDesc);
+
+  edm::ParameterSetDescription isolationDesc;
+  isolationDesc.add<int>("AbsIsoThresholdL", 160);
+  isolationDesc.add<int>("AbsIsoThresholdM", 120);
+  isolationDesc.add<int>("AbsIsoThresholdT", 80);
+  isolationDesc.add<double>("RelIsoThresholdL", 0.1);
+  isolationDesc.add<double>("RelIsoThresholdM", 0.05);
+  isolationDesc.add<double>("RelIsoThresholdT", 0.01);
+  isolationDesc.add<int>("verbose", 0);
+  isolationDesc.add<int>("IsodumpForHLS", 0);
+  desc.add<edm::ParameterSetDescription>("isolation", isolationDesc);
+
+  edm::ParameterSetDescription tauto3muDesc;
+  desc.add<edm::ParameterSetDescription>("tauto3mu", tauto3muDesc);
+
+  descriptions.add("gmtTkMuons", desc);
+ // edm::ParameterSetDescription desc;
+ // desc.setUnknown();
+  //descriptions.addDefault(desc);
+
+
 }
 
 //define this as a plug-in

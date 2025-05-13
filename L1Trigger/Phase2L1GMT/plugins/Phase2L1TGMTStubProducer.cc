@@ -7,7 +7,7 @@
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/Utilities/interface/StreamID.h"
-
+#include "L1Trigger/Phase2L1GMT/interface/PreTrackMatchedMuon.h"
 #include "L1Trigger/Phase2L1GMT/interface/L1TPhase2GMTEndcapStubProcessor.h"
 #include "L1Trigger/Phase2L1GMT/interface/L1TPhase2GMTBarrelStubProcessor.h"
 #include "L1Trigger/Phase2L1GMT/interface/DataDumper.h"
@@ -47,8 +47,7 @@ private:
 };
 
 Phase2L1TGMTStubProducer::Phase2L1TGMTStubProducer(const edm::ParameterSet& iConfig)
-    : srcCSC_(
-          consumes<MuonDigiCollection<CSCDetId, CSCCorrelatedLCTDigi>>(iConfig.getParameter<edm::InputTag>("srcCSC"))),
+    : srcCSC_(consumes<MuonDigiCollection<CSCDetId, CSCCorrelatedLCTDigi>>(iConfig.getParameter<edm::InputTag>("srcCSC"))),
       srcDT_(consumes<L1Phase2MuDTPhContainer>(iConfig.getParameter<edm::InputTag>("srcDT"))),
       srcDTTheta_(consumes<L1MuDTChambThContainer>(iConfig.getParameter<edm::InputTag>("srcDTTheta"))),
       srcRPC_(consumes<RPCDigiCollection>(iConfig.getParameter<edm::InputTag>("srcRPC"))),
@@ -56,7 +55,7 @@ Phase2L1TGMTStubProducer::Phase2L1TGMTStubProducer(const edm::ParameterSet& iCon
       procBarrel_(new L1TPhase2GMTBarrelStubProcessor(iConfig.getParameter<edm::ParameterSet>("Barrel"))),
       ttTrackMCTruthToken_(consumes< TTTrackAssociationMap< Ref_Phase2TrackerDigi_ > >(iConfig.getParameter<edm::InputTag>("mcTruthTrackInputTag"))),
       trackingParticleToken_(consumes< std::vector< TrackingParticle > >(iConfig.getParameter<edm::InputTag>("trackingParticleInputTag"))),
-      dataDumper(ttTrackMCTruthToken_, trackingParticleToken_, iConfig.getParameter<bool>("dumpToRoot")  ), 
+      dataDumper(ttTrackMCTruthToken_, trackingParticleToken_, iConfig.getParameter<bool>("dumpToRoot")), 
       verbose_(iConfig.getParameter<int>("verbose")) {
   produces<l1t::MuonStubCollection>("kmtf");
   produces<l1t::MuonStubCollection>("tps");
@@ -114,6 +113,12 @@ void Phase2L1TGMTStubProducer::produce(edm::Event& iEvent, const edm::EventSetup
   Handle<L1MuDTChambThContainer> dtThetaDigis;
   iEvent.getByToken(srcDTTheta_, dtThetaDigis);
 
+
+    //edm::Handle<std::vector<TTTrack<Ref_Phase2TrackerDigi_>>> mcTruthTTTrackHandle
+    edm::Handle<TTTrackAssociationMap<Ref_Phase2TrackerDigi_>> mcTruthTTTrackHandle;
+    iEvent.getByToken(ttTrackMCTruthToken_, mcTruthTTTrackHandle);
+
+
   //Generate a unique stub ID
   l1t::MuonStubCollection stubs;
   l1t::MuonStubCollection stubsKMTF;
@@ -129,8 +134,74 @@ void Phase2L1TGMTStubProducer::produce(edm::Event& iEvent, const edm::EventSetup
     stubsKMTF.push_back(stub);
   }
 
-  iEvent.put(std::make_unique<l1t::MuonStubCollection>(stubs), "tps");
-  iEvent.put(std::make_unique<l1t::MuonStubCollection>(stubsKMTF), "kmtf");
+   // Put the stubs into the event
+    auto stubsHandle = iEvent.put(std::make_unique<l1t::MuonStubCollection>(stubs), "tps");
+    iEvent.put(std::make_unique<l1t::MuonStubCollection>(stubsKMTF), "kmtf");
+
+    // Create PreTrackMatchedMuon objects
+    std::vector<Phase2L1GMT::PreTrackMatchedMuon> preTrackMatchedMuons;
+   
+ for (size_t index = 0; index < stubs.size(); ++index) {
+    // Create a reference to the stub
+    edm::Ref<l1t::MuonStubCollection> stubRef(stubsHandle, index);
+
+    // Create a PreTrackMatchedMuon object
+    Phase2L1GMT::PreTrackMatchedMuon preTrackMatchedMuon(
+        0,  // Default charge value
+        stubRef->coord1(), stubRef->coord2(), stubRef->tfLayer(), stubRef->bxNum(), 0);
+
+    // Add the stub reference to the PreTrackMatchedMuon object
+    preTrackMatchedMuon.addStub(stubRef, 0x1);
+
+    edm::Ptr<TTTrack<Ref_Phase2TrackerDigi_>> matchedTTTrackPtr;
+
+    // Loop over all TTTracks in the association map
+    const auto& trackToTPMap = mcTruthTTTrackHandle->getTTTrackToTrackingParticleMap();
+    for (const auto& [ttTrackPtr, trackingParticlePtr] : trackToTPMap) {
+      std::cout << "TTTrack ID: " << ttTrackPtr.id() << ", TrackingParticle ID: " << trackingParticlePtr.id() << std::endl;
+        // Check if the TTTrack is associated with the current stub
+        // Since there is no direct link, you may need to implement custom logic here
+        // For example, you could check if the TTTrack's eta/phi matches the MuonStub's eta/phi
+        if (std::abs(stubRef->eta1() - ttTrackPtr->momentum().eta()) < 0.1 &&
+    std::abs(stubRef->coord1() - ttTrackPtr->momentum().phi()) < 0.1) {
+    matchedTTTrackPtr = ttTrackPtr;
+    break;
+}
+    }
+
+    if (matchedTTTrackPtr.isNonnull()) {
+        // Retrieve the associated TrackingParticle
+        edm::Ptr<TrackingParticle> trackingParticlePtr = mcTruthTTTrackHandle->findTrackingParticlePtr(matchedTTTrackPtr);
+
+        if (trackingParticlePtr.isNonnull()) {
+            // Retrieve the associated TTTrack pointers using the TrackingParticle
+            std::vector<edm::Ptr<TTTrack<Ref_Phase2TrackerDigi_>>> ttTrackPtrs =
+                mcTruthTTTrackHandle->findTTTrackPtrs(trackingParticlePtr);
+
+            // Check if there are any associated tracks
+            if (!ttTrackPtrs.empty()) {
+                edm::Ptr<TTTrack<Ref_Phase2TrackerDigi_>> associatedTTTrackPtr = ttTrackPtrs[0];  // Use the first associated track
+                preTrackMatchedMuon.setTrkPtr(associatedTTTrackPtr);
+            } else {
+                std::cout << "Phase2L1TGMTStubProducer: No TTTrack pointer found for TrackingParticle!" << std::endl;
+            }
+        } else {
+            std::cout << "Phase2L1TGMTStubProducer: No TrackingParticle found for TTTrack!" << std::endl;
+        }
+    } else {
+        std::cout << "Phase2L1TGMTStubProducer: No TTTrack found for stub!" << std::endl;
+    }
+
+    // Add the PreTrackMatchedMuon to the collection
+    preTrackMatchedMuons.push_back(preTrackMatchedMuon);
+}
+    // Call DataDumper to process the PreTrackMatchedMuon objects
+    dataDumper.getHandles(iEvent);
+
+    for (auto& preTrackMatchedMuon : preTrackMatchedMuons) {
+        dataDumper.process(preTrackMatchedMuon);
+    }
+
 }
 
 // ------------ method called once each stream before processing any runs, lumis or events  ------------
